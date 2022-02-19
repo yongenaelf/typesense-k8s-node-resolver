@@ -20,12 +20,13 @@ import (
 
 func main() {
 	var namespace, service, nodesFile string
-	var peerPort int
+	var peerPort, apiPort int
 
 	flag.StringVar(&namespace, "namespace", "typesense", "The namespace that Typesense is installed within")
 	flag.StringVar(&service, "service", "ts", "The name of the Typesense service to use the endpoints of")
 	flag.StringVar(&nodesFile, "nodes-file", "/usr/share/typesense/nodes", "The location of the file to write node information to")
-	flag.IntVar(&peerPort, "peer-port", 8107, "The port used by Typesense for peering")
+	flag.IntVar(&peerPort, "peer-port", 8107, "Port on which Typesense peering service listens")
+	flag.IntVar(&apiPort, "api-port", 8108, "Port on which Typesense API service listens")
 	flag.Parse()
 
 	configPath := filepath.Join(homedir.HomeDir(), ".kube", "config")
@@ -57,14 +58,14 @@ func main() {
 	}
 
 	for range watcher.ResultChan() {
-		err := os.WriteFile(nodesFile, []byte(getNodes(clients, namespace, service, peerPort)), 0666)
+		err := os.WriteFile(nodesFile, []byte(getNodes(clients, namespace, service, peerPort, apiPort)), 0666)
 		if err != nil {
 			log.Printf("failed to write nodes file: %s\n", err)
 		}
 	}
 }
 
-func getNodes(clients *kubernetes.Clientset, namespace, service string, peerPort int) string {
+func getNodes(clients *kubernetes.Clientset, namespace, service string, peerPort int, apiPort int) string {
 	var nodes []string
 
 	endpoints, err := clients.CoreV1().Endpoints(namespace).List(context.Background(), metav1.ListOptions{})
@@ -81,11 +82,20 @@ func getNodes(clients *kubernetes.Clientset, namespace, service string, peerPort
 		for _, s := range e.Subsets {
 			for _, a := range s.Addresses {
 				for _, p := range s.Ports {
-					nodes = append(nodes, fmt.Sprintf("%s:%d:%d", a.IP, peerPort, p.Port))
+					// Typesense exporter sidecar for Prometheus runs on port 9000
+					if int(p.Port) == apiPort {
+						nodes = append(nodes, fmt.Sprintf("%s:%d:%d", a.IP, peerPort, p.Port))
+					}
 				}
 			}
 		}
 	}
 
-	return strings.Join(nodes, ",")
+	typesenseNodes := strings.Join(nodes, ",")
+
+	if len(nodes) != 0 {
+		log.Printf("New %d node configuration: %s\n", len(nodes), typesenseNodes)
+	}
+
+	return typesenseNodes
 }
