@@ -12,6 +12,4 @@ FROM cgr.dev/chainguard/static:latest
 
 COPY --from=builder /work/tsns /opt
 
-RUN mkdir -p /usr/share/typesense
-
 ENTRYPOINT ["/opt/tsns"]
