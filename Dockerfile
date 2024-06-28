@@ -8,7 +8,7 @@ RUN set -euxo pipefail \
  && go mod download \
  && CGO_ENABLED=0 go build -ldflags "-s -w" -o tsns .
 
-FROM alpine
+FROM alpine:3
 
 COPY --from=builder /go/src/github.com/seeruk/tsns/tsns /opt
 
