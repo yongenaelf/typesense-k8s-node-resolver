@@ -1,4 +1,4 @@
-FROM cgr.dev/chainguard/go:latest as build
+FROM cgr.dev/chainguard/go:latest as builder
 
 WORKDIR /work
 
