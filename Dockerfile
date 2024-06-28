@@ -1,6 +1,6 @@
-FROM golang:1.17-alpine AS builder
+FROM cgr.dev/chainguard/go:latest as build
 
-WORKDIR /go/src/github.com/seeruk/tsns
+WORKDIR /work
 
 ADD . .
 
@@ -8,10 +8,9 @@ RUN set -euxo pipefail \
  && go mod download \
  && CGO_ENABLED=0 go build -ldflags "-s -w" -o tsns .
 
-# Run steps
-FROM alpine:3
+FROM cgr.dev/chainguard/static:latest
 
-COPY --from=builder /go/src/github.com/seeruk/tsns/tsns /opt
+COPY --from=builder /work/tsns /opt
 
 RUN mkdir -p /usr/share/typesense
 
